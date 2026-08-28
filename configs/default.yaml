@@ -1,0 +1,28 @@
+video:
+  fps_override: null
+
+detection:
+  model_path: "yolo11m.pt"
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  vehicle_classes: ["car", "bus", "truck", "motorcycle", "bicycle"]
+  person_class: "person"
+  device: "auto"
+
+tracking:
+  tracker: "botsort"
+  appearance_reid_enabled: true  # re-acquire occluded tracks by appearance, not just motion
+  min_track_seconds: 0.5
+  min_visibility_ratio: 0.6      # fraction of a track's span it must actually be visible in
+  reid_max_gap_seconds: 1.0             # merge a same-class track re-acquired within this long
+  reid_max_centroid_distance_ratio: 0.06  # ...and reappearing within this fraction of the frame diagonal
+
+congestion:
+  density_thresholds:
+    moderate: 6
+    high: 14
+  persistence_frames: 15
+
+output:
+  output_dir: "outputs"
+  save_annotated_video: true

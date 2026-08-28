@@ -1,0 +1,18 @@
+services:
+  traffic-intelligence:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./configs:/app/configs
+    command: ["run", "--input", "data/raw/avenue.mp4", "--config", "configs/default.yaml"]
+
+  dashboard:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./configs:/app/configs
+    ports:
+      - "8501:8501"
+    entrypoint: ["python", "-m", "streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0"]

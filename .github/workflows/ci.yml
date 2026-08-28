@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check src tests dashboard scripts
+
+      - name: Verify package imports
+        run: |
+          python -c "import traffic_intelligence"
+          python -c "from traffic_intelligence.config.settings import load_config; load_config('configs/default.yaml')"
+
+      - name: Run tests
+        run: pytest -q
