@@ -1,7 +1,13 @@
-# flux-cv
+<h1 align="center">FLUX Computer Vision</h1>
 
+<p align="center">
 Computer vision pipeline that tracks vehicles and people in traffic footage and reports
 counts + congestion level.
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot.jpg" alt="Annotated traffic video with vehicle/pedestrian boxes, track IDs, and the live summary panel" width="480">
+</p>
 
 ## What it does
 
