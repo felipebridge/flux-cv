@@ -1,12 +1,3 @@
-# BoT-SORT tracker config with appearance-based re-identification enabled.
-# Identical to Ultralytics' shipped botsort.yaml except `with_reid: true` — used when
-# tracking.tracker: botsort and tracking.appearance_reid_enabled: true (see
-# traffic_intelligence.tracking.ultralytics_tracker). Appearance matching lets the tracker
-# re-acquire an object under its original ID after occlusion by how it looks, not just where
-# it was and how fast it was moving — motion/IoU alone (bytetrack, or botsort without this)
-# can't tell two similar-looking objects apart when one substitutes for the other during the
-# occluded interval. This does not require training a model: Ultralytics extracts the
-# embedding from the detector's own features (model: auto) rather than a separate ReID network.
 tracker_type: botsort
 track_high_thresh: 0.25
 track_low_thresh: 0.1

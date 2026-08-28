@@ -11,11 +11,11 @@ detection:
 
 tracking:
   tracker: "botsort"
-  appearance_reid_enabled: true  # re-acquire occluded tracks by appearance, not just motion
+  appearance_reid_enabled: true
   min_track_seconds: 0.5
-  min_visibility_ratio: 0.6      # fraction of a track's span it must actually be visible in
-  reid_max_gap_seconds: 1.0             # merge a same-class track re-acquired within this long
-  reid_max_centroid_distance_ratio: 0.06  # ...and reappearing within this fraction of the frame diagonal
+  min_visibility_ratio: 0.6
+  reid_max_gap_seconds: 1.0
+  reid_max_centroid_distance_ratio: 0.06
 
 congestion:
   density_thresholds:

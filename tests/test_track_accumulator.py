@@ -66,8 +66,6 @@ def test_single_frame_track_is_always_rejected(detection_factory):
 
 
 def test_rejects_flickering_track_despite_meeting_duration(detection_factory):
-    # Span covers frames 0-9 (1.0s @ 10fps, well past min_track_seconds) but the
-    # track is only actually visible in 3 of those 10 frames.
     accumulator = TrackAccumulator(min_track_seconds=0.3, min_visibility_ratio=0.6)
     for frame_index in (0, 5, 9):
         accumulator.add(detection_factory(track_id=1, frame_index=frame_index, fps=10.0))
@@ -76,8 +74,6 @@ def test_rejects_flickering_track_despite_meeting_duration(detection_factory):
 
 
 def test_keeps_track_meeting_visibility_ratio_despite_occlusion_gaps(detection_factory):
-    # Visible in 8 of 10 spanned frames (0.8 >= 0.6) — occasional occlusion,
-    # not flicker.
     accumulator = TrackAccumulator(min_track_seconds=0.3, min_visibility_ratio=0.6)
     for frame_index in (0, 1, 2, 3, 5, 6, 7, 9):
         accumulator.add(detection_factory(track_id=1, frame_index=frame_index, fps=10.0))
