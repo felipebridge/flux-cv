@@ -7,12 +7,7 @@ from traffic_intelligence.schemas.metrics import CongestionState
 
 
 class CongestionClassifier:
-    """Classifies traffic congestion from vehicle density (currently visible
-    vehicles) against config-driven thresholds. A rolling majority vote over
-    the last `persistence_frames` instantaneous classifications is returned
-    instead of the raw per-frame value, so a single noisy frame does not
-    flip the reported state.
-    """
+    """Classifies congestion from vehicle density, smoothed by a rolling vote over `persistence_frames`."""
 
     def __init__(self, config: CongestionConfig) -> None:
         self._config = config

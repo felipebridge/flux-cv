@@ -9,10 +9,7 @@ _TRAIL_LENGTH = 20
 
 
 class TrackAccumulator:
-    """Accumulates per-track bookkeeping across the video: how long a track
-    was seen for and how consistently (used to reject brief detection
-    flicker regardless of the video's frame rate), its dominant class, and a
-    short trail of recent centroids for drawing."""
+    """Accumulates per-track duration, visibility, dominant class, and a recent-centroid trail."""
 
     def __init__(self, min_track_seconds: float, min_visibility_ratio: float = 0.6) -> None:
         self._min_track_seconds = min_track_seconds

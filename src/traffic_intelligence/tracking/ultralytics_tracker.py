@@ -25,17 +25,7 @@ class ModelLoadError(Exception):
 
 
 class UltralyticsTracker:
-    """Multi-object tracker built on Ultralytics' native ByteTrack/BoT-SORT
-    integration rather than a hand-rolled reimplementation.
-
-    Both trackers combine a Kalman-filter motion model with Hungarian
-    assignment over detection/track affinity; reimplementing that machinery
-    from scratch would trade a well-tested, widely benchmarked tracker for a
-    weaker one without adding real value. Swapping trackers is a config
-    change (`tracking.tracker: bytetrack|botsort`), and a different tracking
-    backend can be plugged in later by implementing the same `Tracker`
-    protocol.
-    """
+    """Multi-object tracker built on Ultralytics' ByteTrack/BoT-SORT integration (see docs/architecture.md)."""
 
     def __init__(self, detection_config: DetectionConfig, tracking_config: TrackingConfig) -> None:
         self._detection_config = detection_config

@@ -11,19 +11,7 @@ def stitch_fragmented_tracks(
     max_gap_seconds: float,
     max_centroid_distance_ratio: float,
 ) -> list[TrackSummary]:
-    """Merges tracks that likely represent one physical object whose tracker
-    ID switched under occlusion, rather than two distinct objects.
-
-    A track is only merged into an earlier one of the same class when both
-    hold: it starts shortly after the earlier one was last seen (within
-    `max_gap_seconds` — a real re-acquisition, not two simultaneous
-    objects), and it reappears close to where the earlier one disappeared
-    (within `max_centroid_distance_ratio` of the frame diagonal — a
-    genuinely new object entering the scene would not, in general, start
-    exactly where another just vanished). Both conditions together are the
-    signature of a tracker ID switch; either alone is common and would merge
-    unrelated objects.
-    """
+    """Merges same-class tracks likely re-acquired under a new ID after occlusion (see docs/architecture.md)."""
     max_distance = frame_diagonal * max_centroid_distance_ratio
 
     by_class: dict[str, list[TrackSummary]] = {}

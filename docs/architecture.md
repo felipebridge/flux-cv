@@ -1,7 +1,7 @@
 # Architecture notes
 
-This document covers implementation decisions that don't fit in the README, plus one
-platform-specific issue worth knowing about before debugging it from scratch.
+Implementation decisions that aren't obvious from reading the code, plus one platform-specific
+issue worth knowing about before debugging it from scratch.
 
 ## Why the pipeline package has no facade `__init__.py`
 
@@ -48,8 +48,7 @@ wheel can also resolve it, since this is ultimately a packaging issue upstream, 
 
 ## Why the tracker wraps Ultralytics' ByteTrack/BoT-SORT instead of reimplementing them
 
-See the README's [Tracking methodology](../README.md#tracking-methodology) section. In short:
-both trackers are Kalman filter + Hungarian assignment, which is easy to get subtly wrong, and
+Both trackers are Kalman filter + Hungarian assignment, which is easy to get subtly wrong, and
 Ultralytics' implementations are already tested against standard MOT benchmarks. The `Tracker`
 protocol in `tracking/base.py` exists so a different backend could be substituted later without
 changing `pipeline.runner`.
@@ -78,24 +77,17 @@ actually be present in most of the frames within its span.
 
 After filtering, `tracking.stitch_fragmented_tracks` runs once more over the finalized tracks to
 merge same-class fragments that are almost certainly the same physical object handed off between
-IDs (see the README's Tracking methodology section for the exact gap/distance criteria). This
-runs after `TrackAccumulator.finalize`, not inside it, because stitching needs to compare
-*already-finalized* tracks against each other (their start/end points), whereas the accumulator
-only ever sees one live detection at a time.
+IDs: two tracks merge when the second starts shortly after the first was last seen
+(`tracking.reid_max_gap_seconds`) *and* reappears close to where the first disappeared
+(`tracking.reid_max_centroid_distance_ratio` of the frame diagonal). This runs after
+`TrackAccumulator.finalize`, not inside it, because stitching needs to compare *already-finalized*
+tracks against each other (their start/end points), whereas the accumulator only ever sees one
+live detection at a time.
 
 ## Why traffic level is based on density, not speed
 
-This project no longer estimates speed (see the README's Limitations section for why speed
-estimation was dropped). Congestion is classified purely from how many vehicles are visible in
-the frame at once (`CongestionClassifier`), smoothed over `congestion.persistence_frames` so a
-momentary spike or dip doesn't flip the reported level. The value reported for the whole video
-(`traffic_level` in `summary.json`) is the *most common* per-frame level across the run, not
-just whatever it happened to be on the last frame — a single busy or quiet moment near the end
-of the clip shouldn't define the whole video's traffic characterization.
-
-## Why SciPy isn't a dependency
-
-Every statistic this project computes is a simple count or a `collections.Counter` tally, so
-SciPy would add nothing. NumPy stays as a dependency regardless — it's what frames are
-represented as (`np.ndarray`) once OpenCV decodes them, and `visualization.annotator` uses it
-directly for drawing trails.
+This project doesn't estimate vehicle speed — congestion is classified purely from how many
+vehicles are visible in the frame at once (`CongestionClassifier`), smoothed over
+`congestion.persistence_frames` so a momentary spike or dip doesn't flip the reported level. The
+value reported for the whole video (`traffic_level` in `summary.json`) is the *most common*
+per-frame level across the run, not just whatever it happened to be on the last frame.

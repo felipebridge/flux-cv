@@ -42,10 +42,7 @@ def _put_label(
 
 
 class FrameAnnotator:
-    """Renders a clean overlay: bounding boxes with a compact label, a short
-    trail per track, and a single summary panel with the three headline
-    numbers this project reports — vehicle count, person count, traffic
-    level. No per-object text walls."""
+    """Renders bounding boxes, per-track trails, and the vehicle/person/traffic summary panel."""
 
     def __init__(self, trail_length: int = 20) -> None:
         self._trail_length = trail_length
