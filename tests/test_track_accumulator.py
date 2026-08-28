@@ -81,3 +81,30 @@ def test_keeps_track_meeting_visibility_ratio_despite_occlusion_gaps(detection_f
     summaries = accumulator.finalize()
     assert len(summaries) == 1
     assert summaries[0].frame_count == 8
+
+
+def test_is_confirmed_false_for_unknown_track():
+    accumulator = TrackAccumulator(min_track_seconds=0.3)
+    assert accumulator.is_confirmed(999) is False
+
+
+def test_is_confirmed_false_before_minimum_duration(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.3)
+    accumulator.add(detection_factory(track_id=1, frame_index=0, fps=10.0))
+    assert accumulator.is_confirmed(1) is False
+
+
+def test_is_confirmed_true_once_duration_and_visibility_are_met(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.3, min_visibility_ratio=0.6)
+    for frame_index in range(5):
+        accumulator.add(detection_factory(track_id=1, frame_index=frame_index, fps=10.0))
+    assert accumulator.is_confirmed(1) is True
+
+
+def test_is_confirmed_matches_finalize_for_flickering_track(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.3, min_visibility_ratio=0.6)
+    for frame_index in (0, 5, 9):
+        accumulator.add(detection_factory(track_id=1, frame_index=frame_index, fps=10.0))
+
+    assert accumulator.is_confirmed(1) is False
+    assert accumulator.finalize() == []

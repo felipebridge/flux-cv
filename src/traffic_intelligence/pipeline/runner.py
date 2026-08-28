@@ -72,8 +72,9 @@ class PipelineRunner:
                     self._accumulator.add(detection)
 
                 person_class = self._config.detection.person_class
-                vehicle_count = sum(1 for d in tracked if d.class_name != person_class)
-                person_count = sum(1 for d in tracked if d.class_name == person_class)
+                confirmed = [d for d in tracked if self._accumulator.is_confirmed(d.track_id)]
+                vehicle_count = sum(1 for d in confirmed if d.class_name != person_class)
+                person_count = sum(1 for d in confirmed if d.class_name == person_class)
 
                 traffic_level = self._congestion_classifier.update(vehicle_count)
                 self._traffic_level_history.append(traffic_level)

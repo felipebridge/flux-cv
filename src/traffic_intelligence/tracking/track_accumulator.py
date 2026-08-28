@@ -43,18 +43,24 @@ class TrackAccumulator:
     def trail(self, track_id: int) -> list[tuple[float, float]]:
         return list(self._trails.get(track_id, ()))
 
+    def is_confirmed(self, track_id: int) -> bool:
+        if track_id not in self._first_seen:
+            return False
+        first_frame, first_timestamp = self._first_seen[track_id]
+        last_frame, last_timestamp = self._last_seen[track_id]
+        if last_timestamp - first_timestamp < self._min_track_seconds:
+            return False
+        span_frames = last_frame - first_frame + 1
+        return self._frame_counts[track_id] / span_frames >= self._min_visibility_ratio
+
     def finalize(self) -> list[TrackSummary]:
         summaries: list[TrackSummary] = []
         for track_id, frame_count in self._frame_counts.items():
+            if not self.is_confirmed(track_id):
+                continue
+
             first_frame, first_timestamp = self._first_seen[track_id]
             last_frame, last_timestamp = self._last_seen[track_id]
-            if last_timestamp - first_timestamp < self._min_track_seconds:
-                continue
-
-            span_frames = last_frame - first_frame + 1
-            if frame_count / span_frames < self._min_visibility_ratio:
-                continue
-
             dominant_class_id, _ = self._class_votes[track_id].most_common(1)[0]
             confidences = self._confidences[track_id]
 

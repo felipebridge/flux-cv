@@ -82,6 +82,16 @@ IDs: two tracks merge when the second starts shortly after the first was last se
 tracks against each other (their start/end points), whereas the accumulator only ever sees one
 live detection at a time.
 
+`TrackAccumulator.is_confirmed` exposes the same duration+visibility check `finalize` uses, but
+queryable per track *while the video is still being processed*. `pipeline.runner` uses it to
+filter which detections count toward the live Vehicles/People numbers drawn on the annotated
+video and fed to `CongestionClassifier` each frame — without it, that per-frame count is the raw,
+unfiltered detection count for that single frame, which can spike to nonsense values on a frame
+where the detector briefly misfires, since none of the flicker/occlusion filtering above has run
+yet for a track that new. A newly-appeared object doesn't count on-screen until it clears
+`min_track_seconds` and `min_visibility_ratio`, same as it would in the final summary — the live
+numbers and the final `summary.json` numbers are now counting by the same rule.
+
 ## Why traffic level is based on density, not speed
 
 This project doesn't estimate vehicle speed — congestion is classified purely from how many
