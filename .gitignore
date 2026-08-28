@@ -12,8 +12,6 @@ venv/
 
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
 
 outputs/videos/*
 !outputs/videos/.gitkeep
@@ -21,6 +19,7 @@ outputs/analytics/*
 !outputs/analytics/.gitkeep
 outputs/tracks/*
 !outputs/tracks/.gitkeep
+outputs_*/
 
 *.pt
 .DS_Store

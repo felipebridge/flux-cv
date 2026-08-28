@@ -15,7 +15,7 @@ COPY dashboard ./dashboard
 
 RUN pip install --no-cache-dir .
 
-RUN mkdir -p data/raw data/processed outputs
+RUN mkdir -p data/raw outputs
 
 ENTRYPOINT ["python", "-m", "traffic_intelligence"]
 CMD ["--help"]

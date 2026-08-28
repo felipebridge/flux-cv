@@ -98,6 +98,3 @@ class UltralyticsTracker:
                 )
             )
         return tracked
-
-    def reset(self) -> None:
-        self._model.predictor = None

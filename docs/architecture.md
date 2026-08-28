@@ -49,9 +49,7 @@ wheel can also resolve it, since this is ultimately a packaging issue upstream, 
 ## Why the tracker wraps Ultralytics' ByteTrack/BoT-SORT instead of reimplementing them
 
 Both trackers are Kalman filter + Hungarian assignment, which is easy to get subtly wrong, and
-Ultralytics' implementations are already tested against standard MOT benchmarks. The `Tracker`
-protocol in `tracking/base.py` exists so a different backend could be substituted later without
-changing `pipeline.runner`.
+Ultralytics' implementations are already tested against standard MOT benchmarks.
 
 ## Why detection and tracking are one call, not two
 
