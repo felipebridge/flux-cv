@@ -83,14 +83,17 @@ tracks against each other (their start/end points), whereas the accumulator only
 live detection at a time.
 
 `TrackAccumulator.is_confirmed` exposes the same duration+visibility check `finalize` uses, but
-queryable per track *while the video is still being processed*. `pipeline.runner` uses it to
-filter which detections count toward the live Vehicles/People numbers drawn on the annotated
-video and fed to `CongestionClassifier` each frame — without it, that per-frame count is the raw,
-unfiltered detection count for that single frame, which can spike to nonsense values on a frame
-where the detector briefly misfires, since none of the flicker/occlusion filtering above has run
-yet for a track that new. A newly-appeared object doesn't count on-screen until it clears
-`min_track_seconds` and `min_visibility_ratio`, same as it would in the final summary — the live
-numbers and the final `summary.json` numbers are now counting by the same rule.
+queryable per track *while the video is still being processed*. `pipeline.runner` filters
+detections down to this confirmed set once per frame and uses that same filtered list for
+*everything* the frame produces: the boxes drawn, the trails drawn, the live Vehicles/People
+numbers, and the value fed to `CongestionClassifier`. Using one filtered list for all of it, not
+separate ones, is what keeps the on-screen number honest — it's not a running total to be
+compared to the boxes, it's a live count *of* the boxes, so it can never show a number the video
+doesn't visibly back up. Before this, the panel counted raw per-frame detections while the boxes
+drawn were also raw, unrelated to that count's own filtering; a detector misfire could each
+inflate the number for a frame or two independent of what was drawn. A newly-appeared real object
+now has no box and doesn't count for its first `min_track_seconds`, same delay it would see in
+the final summary — the live numbers and `summary.json` count by the same rule.
 
 ## Why traffic level is based on density, not speed
 

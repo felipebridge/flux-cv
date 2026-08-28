@@ -80,9 +80,9 @@ class PipelineRunner:
                 self._traffic_level_history.append(traffic_level)
 
                 if video_writer is not None:
-                    trails = {d.track_id: self._accumulator.trail(d.track_id) for d in tracked}
+                    trails = {d.track_id: self._accumulator.trail(d.track_id) for d in confirmed}
                     annotated_frame = self._annotator.annotate(
-                        frame, tracked, trails, vehicle_count, person_count, traffic_level
+                        frame, confirmed, trails, vehicle_count, person_count, traffic_level
                     )
                     video_writer.write(annotated_frame)
 
