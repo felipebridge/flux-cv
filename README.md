@@ -1,8 +1,13 @@
 <h1 align="center">FLUX Computer Vision</h1>
 
 <p align="center">
-Computer vision pipeline that tracks vehicles and people in traffic footage and reports
-counts + congestion level.
+Real-time vehicle & pedestrian tracking with live traffic congestion classification.
+</p>
+
+<p align="center">
+  <a href="https://github.com/felipebridge/flux-cv/actions/workflows/ci.yml"><img src="https://github.com/felipebridge/flux-cv/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
 </p>
 
 <p align="center">
@@ -11,35 +16,44 @@ counts + congestion level.
 
 ## What it does
 
-- Detects and tracks vehicles (car, bus, truck, motorcycle, bicycle) and pedestrians, each
-  counted once as a distinct object — not once per frame.
-- Classifies traffic congestion (LOW / MODERATE / HIGH) from vehicle density, smoothed over time.
-- Renders an annotated video: boxes, track IDs, and a live Vehicles / People / Traffic panel.
-- Ships a Streamlit dashboard over the exported results.
+- **Multi-class tracking** — vehicles (car, bus, truck, motorcycle, bicycle) and pedestrians are
+  tracked across frames with ByteTrack/BoT-SORT, so each one is counted once as a distinct
+  object, not once per frame.
+- **Congestion classification** — LOW / MODERATE / HIGH traffic level from live vehicle density,
+  smoothed over time so a momentary spike doesn't flip the reading.
+- **Annotated video output** — boxes, track IDs, and a live Vehicles / People / Traffic panel
+  burned into the output video.
+- **Streamlit dashboard** — visualize exported counts and congestion trends without re-running
+  the pipeline.
 
-## Install
+## Quickstart
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate      # Windows
 source .venv/bin/activate   # macOS/Linux
 pip install -e ".[dev]"
-```
 
-CUDA is used automatically if available; otherwise it runs on CPU with no config change.
-
-## Run
-
-```bash
 python -m traffic_intelligence run --input data/raw/avenue.mp4
 python -m traffic_intelligence dashboard
 ```
 
 Put your video at `data/raw/<name>.mp4` first. Ultralytics downloads the configured YOLO
-checkpoint (`yolo11m.pt` by default) automatically on first run.
+checkpoint (`yolo11m.pt` by default) automatically on first run. CUDA is used automatically if
+available; otherwise it runs on CPU with no config change.
 
 `analyze --input outputs/tracks/tracks.csv` recomputes counts from a previous run without
 re-processing the video.
+
+<details>
+<summary>Run with Docker instead</summary>
+
+```bash
+docker compose run traffic-intelligence
+docker compose up dashboard   # http://localhost:8501
+```
+
+</details>
 
 ## Output
 
@@ -52,10 +66,17 @@ outputs/
 
 ## Configuration
 
-All tunable parameters — detection thresholds, tracker choice, congestion density cutoffs — live
-in `configs/default.yaml`, validated by Pydantic on load. See
-[`docs/architecture.md`](docs/architecture.md) for the reasoning behind the defaults, including
-the Windows `torch`/`pandas` import-order workaround if you hit a DLL init error.
+All tunable parameters live in [`configs/default.yaml`](configs/default.yaml), validated by
+Pydantic on load:
+
+| Setting | Controls |
+|---|---|
+| `detection.confidence_threshold` | minimum score for a box to reach the tracker |
+| `tracking.tracker` | `bytetrack` (fast) or `botsort` (+ optional appearance re-ID) |
+| `congestion.density_thresholds` | vehicle-count cutoffs for MODERATE / HIGH |
+
+See [`docs/architecture.md`](docs/architecture.md) for the reasoning behind the defaults,
+including the Windows `torch`/`pandas` import-order workaround if you hit a DLL init error.
 
 ## Stack
 
