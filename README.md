@@ -35,12 +35,6 @@ python -m traffic_intelligence dashboard
 Python 3.11+ · Ultralytics YOLO (ByteTrack/BoT-SORT) · OpenCV · Pydantic · Pandas ·
 Streamlit/Altair · pytest
 
-## Limitations
-
-No labeled ground truth ships with this project, so results are counts, not precision/recall.
-Occlusion can still cause a miss or double-count, and congestion thresholds are density cutoffs
-tuned per camera, not a universal number.
-
 ## Testing
 
 `pytest -q` — config validation, tracking/stitching, and metrics aggregation, no GPU required.
