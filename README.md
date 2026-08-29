@@ -30,12 +30,6 @@ python -m traffic_intelligence run --input data/raw/avenue.mp4
 python -m traffic_intelligence dashboard
 ```
 
-## Configuration
-
-All parameters — thresholds, tracker choice, congestion cutoffs — live in
-[`configs/default.yaml`](configs/default.yaml), validated by Pydantic on load. See
-[`docs/architecture.md`](docs/architecture.md) for the reasoning behind them.
-
 ## Stack
 
 Python 3.11+ · Ultralytics YOLO (ByteTrack/BoT-SORT) · OpenCV · Pydantic · Pandas ·
