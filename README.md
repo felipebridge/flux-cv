@@ -16,90 +16,47 @@ Real-time vehicle & pedestrian tracking with live traffic congestion classificat
 
 ## What it does
 
-- **Multi-class tracking** — vehicles (car, bus, truck, motorcycle, bicycle) and pedestrians are
-  tracked across frames with ByteTrack/BoT-SORT, so each one is counted once as a distinct
-  object, not once per frame.
-- **Congestion classification** — LOW / MODERATE / HIGH traffic level from live vehicle density,
-  smoothed over time so a momentary spike doesn't flip the reading.
-- **Annotated video output** — boxes, track IDs, and a live Vehicles / People / Traffic panel
-  burned into the output video.
-- **Streamlit dashboard** — visualize exported counts and congestion trends without re-running
-  the pipeline.
+Tracks vehicles and pedestrians in traffic video (each counted once, not once per frame),
+classifies congestion as LOW / MODERATE / HIGH, and renders an annotated video plus a
+Streamlit dashboard over the results.
 
 ## Quickstart
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-source .venv/bin/activate   # macOS/Linux
+python -m venv .venv && source .venv/bin/activate   # .venv\Scripts\activate on Windows
 pip install -e ".[dev]"
 
 python -m traffic_intelligence run --input data/raw/avenue.mp4
 python -m traffic_intelligence dashboard
 ```
 
-Put your video at `data/raw/<name>.mp4` first. Ultralytics downloads the configured YOLO
-checkpoint (`yolo11m.pt` by default) automatically on first run. CUDA is used automatically if
-available; otherwise it runs on CPU with no config change.
-
-`analyze --input outputs/tracks/tracks.csv` recomputes counts from a previous run without
-re-processing the video.
-
-<details>
-<summary>Run with Docker instead</summary>
-
-```bash
-docker compose run traffic-intelligence
-docker compose up dashboard   # http://localhost:8501
-```
-
-</details>
-
-## Output
+Drop your video in `data/raw/`. YOLO weights download automatically on first run; CUDA is used
+if available, CPU otherwise — no config change needed.
 
 ```
-outputs/
-├── videos/<name>_annotated.mp4
-├── tracks/tracks.csv
-└── analytics/{metrics.json, summary.json}
+outputs/videos/<name>_annotated.mp4   outputs/tracks/tracks.csv   outputs/analytics/*.json
 ```
 
 ## Configuration
 
-All tunable parameters live in [`configs/default.yaml`](configs/default.yaml), validated by
-Pydantic on load:
-
-| Setting | Controls |
-|---|---|
-| `detection.confidence_threshold` | minimum score for a box to reach the tracker |
-| `tracking.tracker` | `bytetrack` (fast) or `botsort` (+ optional appearance re-ID) |
-| `congestion.density_thresholds` | vehicle-count cutoffs for MODERATE / HIGH |
-
-See [`docs/architecture.md`](docs/architecture.md) for the reasoning behind the defaults,
-including the Windows `torch`/`pandas` import-order workaround if you hit a DLL init error.
+All parameters — thresholds, tracker choice, congestion cutoffs — live in
+[`configs/default.yaml`](configs/default.yaml), validated by Pydantic on load. See
+[`docs/architecture.md`](docs/architecture.md) for the reasoning behind them.
 
 ## Stack
 
-Python 3.11+ · Ultralytics YOLO (detection + ByteTrack/BoT-SORT tracking) · OpenCV · Pydantic ·
-Pandas · Streamlit/Altair · pytest
+Python 3.11+ · Ultralytics YOLO (ByteTrack/BoT-SORT) · OpenCV · Pydantic · Pandas ·
+Streamlit/Altair · pytest
 
 ## Limitations
 
-- No labeled ground truth ships with this project, so no precision/recall/mAP is reported — only
-  counts derived from tracking.
-- Occlusion can still cause a real object to be missed or double-counted; appearance-based
-  re-identification and track stitching reduce this but don't eliminate it.
-- Congestion thresholds are density cutoffs you set per camera — there's no universal "moderate
-  traffic" number that applies to every angle and road width.
+No labeled ground truth ships with this project, so results are counts, not precision/recall.
+Occlusion can still cause a miss or double-count, and congestion thresholds are density cutoffs
+tuned per camera, not a universal number.
 
 ## Testing
 
-```bash
-pytest -q
-```
-
-Covers config validation, tracking/stitching logic, and metrics aggregation — runs in seconds,
-no GPU or model weights required.
+`pytest -q` — config validation, tracking/stitching, and metrics aggregation, no GPU required.
 
 ## License
 
