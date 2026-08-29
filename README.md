@@ -30,13 +30,6 @@ python -m traffic_intelligence run --input data/raw/avenue.mp4
 python -m traffic_intelligence dashboard
 ```
 
-Drop your video in `data/raw/`. YOLO weights download automatically on first run; CUDA is used
-if available, CPU otherwise — no config change needed.
-
-```
-outputs/videos/<name>_annotated.mp4   outputs/tracks/tracks.csv   outputs/analytics/*.json
-```
-
 ## Configuration
 
 All parameters — thresholds, tracker choice, congestion cutoffs — live in
