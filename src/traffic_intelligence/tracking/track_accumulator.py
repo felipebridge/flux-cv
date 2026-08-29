@@ -43,6 +43,15 @@ class TrackAccumulator:
     def trail(self, track_id: int) -> list[tuple[float, float]]:
         return list(self._trails.get(track_id, ()))
 
+    def dominant_class(self, track_id: int) -> tuple[int, str]:
+        """Majority-voted class for a track using votes seen so far (not just at finalize).
+
+        Lets live rendering show the same flicker-resistant class (e.g. bicycle vs.
+        motorcycle) that finalize() would report, instead of the raw per-frame prediction.
+        """
+        class_id, _ = self._class_votes[track_id].most_common(1)[0]
+        return class_id, self._class_names[track_id][class_id]
+
     def is_confirmed(self, track_id: int) -> bool:
         if track_id not in self._first_seen:
             return False
@@ -61,14 +70,14 @@ class TrackAccumulator:
 
             first_frame, first_timestamp = self._first_seen[track_id]
             last_frame, last_timestamp = self._last_seen[track_id]
-            dominant_class_id, _ = self._class_votes[track_id].most_common(1)[0]
+            dominant_class_id, dominant_class_name = self.dominant_class(track_id)
             confidences = self._confidences[track_id]
 
             summaries.append(
                 TrackSummary(
                     track_id=track_id,
                     class_id=dominant_class_id,
-                    class_name=self._class_names[track_id][dominant_class_id],
+                    class_name=dominant_class_name,
                     mean_confidence=sum(confidences) / len(confidences),
                     frame_count=frame_count,
                     first_frame=first_frame,

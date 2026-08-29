@@ -81,8 +81,14 @@ class PipelineRunner:
 
                 if video_writer is not None:
                     trails = {d.track_id: self._accumulator.trail(d.track_id) for d in confirmed}
+                    display_detections = []
+                    for d in confirmed:
+                        class_id, class_name = self._accumulator.dominant_class(d.track_id)
+                        display_detections.append(
+                            d.model_copy(update={"class_id": class_id, "class_name": class_name})
+                        )
                     annotated_frame = self._annotator.annotate(
-                        frame, confirmed, trails, vehicle_count, person_count, traffic_level
+                        frame, display_detections, trails, vehicle_count, person_count, traffic_level
                     )
                     video_writer.write(annotated_frame)
 

@@ -32,6 +32,17 @@ def test_dominant_class_wins_over_flicker(detection_factory):
     assert summaries[0].class_name == "car"
 
 
+def test_dominant_class_resists_bicycle_motorcycle_flicker(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.01)
+    accumulator.add(detection_factory(track_id=1, frame_index=0, class_name="bicycle", class_id=1))
+    accumulator.add(
+        detection_factory(track_id=1, frame_index=1, class_name="motorcycle", class_id=3)
+    )
+    accumulator.add(detection_factory(track_id=1, frame_index=2, class_name="bicycle", class_id=1))
+
+    assert accumulator.dominant_class(1) == (1, "bicycle")
+
+
 def test_mean_confidence_is_averaged(detection_factory):
     accumulator = TrackAccumulator(min_track_seconds=0.01)
     accumulator.add(detection_factory(track_id=1, frame_index=0, confidence=0.6))
