@@ -35,7 +35,6 @@ python -m traffic_intelligence dashboard
 Python 3.11+ · Ultralytics YOLO (ByteTrack/BoT-SORT) · OpenCV · Pydantic · Pandas ·
 Streamlit/Altair · pytest
 
-
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT 
