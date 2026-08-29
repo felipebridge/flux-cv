@@ -8,8 +8,8 @@ from data_loader import load_dashboard_data
 
 _LEVEL_COLORS = {"LOW": "#28a745", "MODERATE": "#fd7e14", "HIGH": "#dc3545"}
 
-st.set_page_config(page_title="AI Traffic Intelligence", layout="wide")
-st.title("AI Traffic Intelligence")
+st.set_page_config(page_title="FLUX Computer Vision", layout="wide")
+st.title("FLUX Computer Vision")
 st.caption("Vehicle count, pedestrian count, and traffic congestion level from a single video.")
 
 output_dir = Path(st.sidebar.text_input("Output directory", value="outputs"))

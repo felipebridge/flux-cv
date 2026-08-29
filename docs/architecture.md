@@ -3,16 +3,19 @@
 Implementation decisions that aren't obvious from reading the code, plus one platform-specific
 issue worth knowing about before debugging it from scratch.
 
-## Why the pipeline package has no facade `__init__.py`
+## Why no package has a facade `__init__.py`
 
-`pipeline/__init__.py` is intentionally empty. `pipeline.video_source.VideoSource` has no
-machine-learning dependency at all (just OpenCV), while `pipeline.runner.PipelineRunner` pulls
-in the full tracking stack (Ultralytics, and transitively PyTorch). If the package's
-`__init__.py` re-exported both (as every other package in this project does, for convenience),
-importing `pipeline.video_source` alone would still execute `pipeline/__init__.py` first —
-which would force a PyTorch import just to open a video file. Callers import
-`traffic_intelligence.pipeline.video_source` and `traffic_intelligence.pipeline.runner`
-directly instead.
+Every `__init__.py` under `src/traffic_intelligence/` is empty. `pipeline.video_source.VideoSource`
+has no machine-learning dependency at all (just OpenCV), while `pipeline.runner.PipelineRunner` and
+`tracking.ultralytics_tracker` pull in the full tracking stack (Ultralytics, and transitively
+PyTorch). Python always runs a package's `__init__.py` before any of its submodules, so if it
+re-exported symbols for convenience, importing `pipeline.video_source` alone would still execute
+`pipeline/__init__.py` first — forcing a PyTorch import just to open a video file. The same applies
+to `tracking`: `track_accumulator.py` has zero ML dependencies, but `tracking/__init__.py` used to
+eagerly import `UltralyticsTracker` for a re-export nothing in the codebase used, so importing the
+accumulator alone silently loaded PyTorch anyway. Callers import each submodule directly —
+`traffic_intelligence.pipeline.video_source`, `traffic_intelligence.tracking.track_accumulator`,
+etc. — instead of relying on package-level re-exports.
 
 ## Windows: torch / pandas DLL conflict
 
