@@ -2,7 +2,7 @@
   <img src="docs/assets/logo.png" alt="Loop logo" width="120">
 </p>
 
-<h1 align="center">FLUX Computer Vision</h1>
+<h1 align="center">Loop Computer Vision</h1>
 
 <p align="center">
 Real-time vehicle & pedestrian tracking with live traffic congestion classification.
