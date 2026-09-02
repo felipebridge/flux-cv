@@ -1,7 +1,8 @@
 # Contributing
 
 Thanks for your interest in Loop Computer Vision. The project is under active
-development — issues, ideas, and pull requests are welcome.
+development — issues, ideas, and pull requests are welcome. Please read our
+[Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ## Getting started
 
