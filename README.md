@@ -9,7 +9,7 @@ Real-time vehicle & pedestrian tracking with live traffic congestion classificat
 </p>
 
 <p align="center">
-  <a href="https://github.com/felipebridge/flux-cv/actions/workflows/ci.yml"><img src="https://github.com/felipebridge/flux-cv/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/felipebridge/loop-computer-vision/actions/workflows/ci.yml"><img src="https://github.com/felipebridge/loop-computer-vision/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
 </p>
