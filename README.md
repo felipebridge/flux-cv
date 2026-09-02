@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Loop logo" width="120">
+</p>
+
 <h1 align="center">FLUX Computer Vision</h1>
 
 <p align="center">
