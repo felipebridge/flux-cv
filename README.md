@@ -37,7 +37,7 @@ Streamlit/Altair · pytest
 
 ## Status
 
-This project is actively being developed and improved. If you're interested in contributing, reach out at felibridge49@gmail.com.
+This project is actively being developed and improved. If you're interested in contributing, see [CONTRIBUTING.md](CONTRIBUTING.md) or reach out at felibridge49@gmail.com.
 
 ## License
 
