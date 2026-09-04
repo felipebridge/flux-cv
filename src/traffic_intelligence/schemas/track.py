@@ -15,6 +15,9 @@ class TrackSummary(BaseModel):
     last_timestamp: float
     first_centroid: tuple[float, float] = (0.0, 0.0)
     last_centroid: tuple[float, float] = (0.0, 0.0)
+    avg_speed_kmh: float | None = None
+    max_speed_kmh: float | None = None
+    speed_estimated: bool = False
 
     @property
     def duration_s(self) -> float:

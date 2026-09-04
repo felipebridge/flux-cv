@@ -1,19 +1,77 @@
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict, deque
 
+from traffic_intelligence.analytics.speed import SpeedEstimator
 from traffic_intelligence.schemas.detection import TrackedDetection
 from traffic_intelligence.schemas.track import TrackSummary
 
 _TRAIL_LENGTH = 20
+# A segment this short (a handful of frames) is dominated by single-frame detection/compensation
+# noise rather than real motion -- a wider window lets that noise average out.
+_MIN_SPEED_SEGMENT_S = 0.4
+_INSTANT_SPEED_WINDOW_S = 0.7
+_TOP_SPEED_PERCENTILE = 0.9
+# Camera-motion compensation (see analytics.motion_compensation) is relative, frame-to-frame
+# visual odometry -- its estimation error compounds over a long shot, and by ~15s of continuous
+# footage that residual drift can rival a parked vehicle's real (zero) displacement. A vehicle
+# that's still in frame after this long almost certainly isn't passing through, so it's held to
+# a stricter bar rather than the base one, which is tuned for the short few-second windows most
+# real vehicles are visible for.
+_LONG_TRACK_SECONDS = 15.0
+_LONG_TRACK_MOVEMENT_MULTIPLIER = 3.0
+# Segment endpoints are individual raw samples, so one noisy frame corrupts every segment that
+# touches it. Averaging each point with its neighbors first removes that without erasing real
+# motion, which happens over many frames, not one.
+_SMOOTHING_WINDOW = 5
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    rank = (len(ordered) - 1) * fraction
+    lower, upper = math.floor(rank), math.ceil(rank)
+    if lower == upper:
+        return ordered[int(rank)]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (rank - lower)
+
+
+def _smoothed(
+    history: list[tuple[float, float, float]], window: int = _SMOOTHING_WINDOW
+) -> list[tuple[float, float, float]]:
+    if len(history) < window:
+        return history
+    half = window // 2
+    smoothed: list[tuple[float, float, float]] = []
+    for i in range(len(history)):
+        chunk = history[max(0, i - half) : min(len(history), i + half + 1)]
+        avg_x = sum(p[1] for p in chunk) / len(chunk)
+        avg_y = sum(p[2] for p in chunk) / len(chunk)
+        smoothed.append((history[i][0], avg_x, avg_y))
+    return smoothed
 
 
 class TrackAccumulator:
-    """Accumulates per-track duration, visibility, dominant class, and a recent-centroid trail."""
+    """Accumulates per-track duration, visibility, dominant class, a recent-centroid trail,
+    and (when a SpeedEstimator is supplied) speed."""
 
-    def __init__(self, min_track_seconds: float, min_visibility_ratio: float = 0.6) -> None:
+    def __init__(
+        self,
+        min_track_seconds: float,
+        min_visibility_ratio: float = 0.6,
+        speed_estimator: SpeedEstimator | None = None,
+        frame_diagonal: float = 0.0,
+        min_movement_ratio: float = 0.0,
+        person_class: str = "person",
+    ) -> None:
         self._min_track_seconds = min_track_seconds
         self._min_visibility_ratio = min_visibility_ratio
+        self._speed_estimator = speed_estimator
+        self._frame_diagonal = frame_diagonal
+        self._min_movement_ratio = min_movement_ratio
+        self._person_class = person_class
         self._frame_counts: dict[int, int] = defaultdict(int)
         self._class_votes: dict[int, Counter[int]] = defaultdict(Counter)
         self._class_names: dict[int, dict[int, str]] = defaultdict(dict)
@@ -25,14 +83,36 @@ class TrackAccumulator:
         self._trails: dict[int, deque[tuple[float, float]]] = defaultdict(
             lambda: deque(maxlen=_TRAIL_LENGTH)
         )
+        # Full (unbounded) per-track position history, timestamped, kept separately from the
+        # display trail above: speed needs the whole track's motion, not just the last
+        # _TRAIL_LENGTH points drawn on screen. Positions here are in the *camera-motion-
+        # compensated* reference frame when the caller supplies one (see
+        # analytics.motion_compensation.CameraMotionEstimator) -- a raw pixel trail would make
+        # a parked car look like it's moving whenever the camera itself pans or shakes.
+        self._position_history: dict[int, list[tuple[float, float, float]]] = defaultdict(list)
+        self._max_displacement: dict[int, float] = defaultdict(float)
 
-    def add(self, detection: TrackedDetection) -> None:
+    def add(self, detection: TrackedDetection, position: tuple[float, float] | None = None) -> None:
         track_id = detection.track_id
+        resolved_position = position if position is not None else detection.centroid
+
         self._frame_counts[track_id] += 1
         self._class_votes[track_id][detection.class_id] += 1
         self._class_names[track_id][detection.class_id] = detection.class_name
         self._confidences[track_id].append(detection.confidence)
         self._trails[track_id].append(detection.centroid)
+        self._position_history[track_id].append(
+            (detection.timestamp, resolved_position[0], resolved_position[1])
+        )
+
+        first_x, first_y = self._position_history[track_id][0][1:]
+        displacement = math.hypot(resolved_position[0] - first_x, resolved_position[1] - first_y)
+        if displacement > self._max_displacement[track_id]:
+            self._max_displacement[track_id] = displacement
+
+        if self._speed_estimator is not None:
+            x1, _, x2, _ = detection.bbox
+            self._speed_estimator.observe(detection.class_name, x2 - x1)
 
         if track_id not in self._first_seen:
             self._first_seen[track_id] = (detection.frame_index, detection.timestamp)
@@ -52,6 +132,31 @@ class TrackAccumulator:
         class_id, _ = self._class_votes[track_id].most_common(1)[0]
         return class_id, self._class_names[track_id][class_id]
 
+    def current_speed_kmh(self, track_id: int) -> float | None:
+        """Instantaneous speed for live on-screen display, from the most recent positions
+        within a short rolling window. Only as accurate as calibration is so far into the
+        video (see SpeedEstimator) -- it typically sharpens as more vehicles are seen."""
+        if self._speed_estimator is None:
+            return None
+        raw_history = self._position_history.get(track_id)
+        if not raw_history or len(raw_history) < 2:
+            return None
+        history = _smoothed(raw_history)
+
+        latest = history[-1]
+        window_start = latest[0] - _INSTANT_SPEED_WINDOW_S
+        anchor = history[-2]
+        for point in reversed(history[:-1]):
+            anchor = point
+            if point[0] <= window_start:
+                break
+
+        duration = latest[0] - anchor[0]
+        if duration < _MIN_SPEED_SEGMENT_S:
+            return None
+        distance_px = math.hypot(latest[1] - anchor[1], latest[2] - anchor[2])
+        return self._speed_estimator.speed_kmh(distance_px, duration)
+
     def is_confirmed(self, track_id: int) -> bool:
         if track_id not in self._first_seen:
             return False
@@ -60,7 +165,59 @@ class TrackAccumulator:
         if last_timestamp - first_timestamp < self._min_track_seconds:
             return False
         span_frames = last_frame - first_frame + 1
-        return self._frame_counts[track_id] / span_frames >= self._min_visibility_ratio
+        if self._frame_counts[track_id] / span_frames < self._min_visibility_ratio:
+            return False
+        return self._has_moved_enough(track_id)
+
+    def _has_moved_enough(self, track_id: int) -> bool:
+        """Excludes parked/stationary vehicles: a track whose (motion-compensated) position
+        never strays far from where it started is standing still, not part of moving traffic.
+        Only applied to vehicles -- a pedestrian standing still is still a pedestrian."""
+        if self._min_movement_ratio <= 0 or self._frame_diagonal <= 0:
+            return True
+        _, class_name = self.dominant_class(track_id)
+        if class_name == self._person_class:
+            return True
+
+        required_ratio = self._min_movement_ratio
+        _, first_timestamp = self._first_seen[track_id]
+        _, last_timestamp = self._last_seen[track_id]
+        if last_timestamp - first_timestamp >= _LONG_TRACK_SECONDS:
+            required_ratio *= _LONG_TRACK_MOVEMENT_MULTIPLIER
+        return self._max_displacement[track_id] >= required_ratio * self._frame_diagonal
+
+    def _speed_summary(self, track_id: int) -> tuple[float | None, float | None]:
+        """Average and top speed over the track's full path, from consecutive segments of
+        the position history (not just first-to-last centroid, which understates speed on a
+        curved or perspective-foreshortened path).
+
+        "Top speed" is the 90th percentile of those segment speeds, not the literal max: a
+        single noisy segment (a stray detection-box jitter or a frame where camera-motion
+        compensation slipped a little) produces one wildly high segment speed among many
+        normal ones, and reporting that raw spike as "max speed" reads as broken rather than
+        as a real burst of speed. The percentile keeps a genuine sustained fast segment while
+        discarding a one-frame outlier.
+        """
+        if self._speed_estimator is None:
+            return None, None
+
+        history = _smoothed(self._position_history.get(track_id, []))
+        speeds: list[float] = []
+        if len(history) >= 2:
+            start = history[0]
+            for point in history[1:]:
+                duration = point[0] - start[0]
+                if duration < _MIN_SPEED_SEGMENT_S:
+                    continue
+                distance_px = math.hypot(point[1] - start[1], point[2] - start[2])
+                speed = self._speed_estimator.speed_kmh(distance_px, duration)
+                if speed is not None:
+                    speeds.append(speed)
+                start = point
+
+        if not speeds:
+            return None, None
+        return sum(speeds) / len(speeds), _percentile(speeds, _TOP_SPEED_PERCENTILE)
 
     def finalize(self) -> list[TrackSummary]:
         summaries: list[TrackSummary] = []
@@ -72,6 +229,7 @@ class TrackAccumulator:
             last_frame, last_timestamp = self._last_seen[track_id]
             dominant_class_id, dominant_class_name = self.dominant_class(track_id)
             confidences = self._confidences[track_id]
+            avg_speed_kmh, max_speed_kmh = self._speed_summary(track_id)
 
             summaries.append(
                 TrackSummary(
@@ -86,6 +244,9 @@ class TrackAccumulator:
                     last_timestamp=last_timestamp,
                     first_centroid=self._first_centroid[track_id],
                     last_centroid=self._last_centroid[track_id],
+                    avg_speed_kmh=avg_speed_kmh,
+                    max_speed_kmh=max_speed_kmh,
+                    speed_estimated=avg_speed_kmh is not None,
                 )
             )
         return summaries

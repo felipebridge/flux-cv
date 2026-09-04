@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from traffic_intelligence.analytics.metrics import compute_traffic_metrics
 from traffic_intelligence.schemas.metrics import CongestionState
 from traffic_intelligence.schemas.track import TrackSummary
@@ -54,3 +56,26 @@ def test_compute_traffic_metrics_reports_traffic_level():
     )
 
     assert metrics.traffic_level == CongestionState.HIGH
+
+
+def test_compute_traffic_metrics_averages_vehicle_speed():
+    summaries = [
+        _summary(1, "car").model_copy(update={"avg_speed_kmh": 40.0}),
+        _summary(2, "bus").model_copy(update={"avg_speed_kmh": 20.0}),
+    ]
+    metrics = compute_traffic_metrics(
+        summaries, CongestionState.LOW, video_duration_s=1.0, frames_processed=30
+    )
+
+    assert metrics.average_vehicle_speed_kmh == pytest.approx(30.0)
+    assert metrics.speed_estimated is True
+
+
+def test_compute_traffic_metrics_speed_none_when_unavailable():
+    summaries = [_summary(1, "car")]
+    metrics = compute_traffic_metrics(
+        summaries, CongestionState.LOW, video_duration_s=1.0, frames_processed=30
+    )
+
+    assert metrics.average_vehicle_speed_kmh is None
+    assert metrics.speed_estimated is False

@@ -3,8 +3,9 @@ video:
 
 detection:
   model_path: "yolo11m.pt"
-  confidence_threshold: 0.35
+  confidence_threshold: 0.3
   iou_threshold: 0.5
+  imgsz: 1280
   vehicle_classes: ["car", "bus", "truck", "motorcycle", "bicycle"]
   person_class: "person"
   device: "auto"
@@ -16,6 +17,7 @@ tracking:
   min_visibility_ratio: 0.6
   reid_max_gap_seconds: 1.0
   reid_max_centroid_distance_ratio: 0.06
+  min_movement_ratio: 0.08
 
 congestion:
   density_thresholds:
@@ -26,3 +28,13 @@ congestion:
 output:
   output_dir: "outputs"
   save_annotated_video: true
+
+speed:
+  enabled: true
+  reference_widths_m:
+    car: 1.8
+    bus: 2.5
+    truck: 2.5
+    motorcycle: 0.8
+    bicycle: 0.6
+  min_calibration_samples: 30

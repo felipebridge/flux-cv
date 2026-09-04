@@ -85,15 +85,20 @@ def _run_command(args: argparse.Namespace) -> int:
         "total_pedestrians": result.metrics.total_pedestrians,
         "vehicles_per_class": result.metrics.vehicles_per_class,
         "traffic_level": result.metrics.traffic_level.value,
+        "average_vehicle_speed_kmh": result.metrics.average_vehicle_speed_kmh,
+        "speed_estimated": result.metrics.speed_estimated,
         "annotated_video_path": str(result.annotated_video_path) if result.annotated_video_path else None,
     }
     write_json(summary, analytics_dir / "summary.json")
 
     logger.info(
-        "Vehicles: %d | Pedestrians: %d | Traffic level: %s",
+        "Vehicles: %d | Pedestrians: %d | Traffic level: %s | Avg speed: %s",
         result.metrics.total_vehicles,
         result.metrics.total_pedestrians,
         result.metrics.traffic_level.value,
+        f"{result.metrics.average_vehicle_speed_kmh:.1f} km/h (est.)"
+        if result.metrics.average_vehicle_speed_kmh is not None
+        else "n/a (not enough vehicles seen yet to calibrate)",
     )
     logger.info("Outputs written to %s", output_dir.resolve())
     return 0

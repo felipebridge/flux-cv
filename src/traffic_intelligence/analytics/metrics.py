@@ -19,6 +19,9 @@ def compute_traffic_metrics(
     total_pedestrians = len(track_summaries) - total_vehicles
     vehicles_per_class = dict(Counter(t.class_name for t in vehicle_summaries))
 
+    speeds = [t.avg_speed_kmh for t in vehicle_summaries if t.avg_speed_kmh is not None]
+    average_vehicle_speed_kmh = sum(speeds) / len(speeds) if speeds else None
+
     return TrafficMetrics(
         total_vehicles=total_vehicles,
         total_pedestrians=total_pedestrians,
@@ -26,4 +29,6 @@ def compute_traffic_metrics(
         traffic_level=traffic_level,
         video_duration_s=video_duration_s,
         frames_processed=frames_processed,
+        average_vehicle_speed_kmh=average_vehicle_speed_kmh,
+        speed_estimated=bool(speeds),
     )

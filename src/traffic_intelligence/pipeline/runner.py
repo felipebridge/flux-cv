@@ -9,7 +9,10 @@ import cv2
 
 from traffic_intelligence.analytics.congestion import CongestionClassifier
 from traffic_intelligence.analytics.metrics import compute_traffic_metrics
+from traffic_intelligence.analytics.motion_compensation import CameraMotionEstimator
+from traffic_intelligence.analytics.speed import SpeedEstimator
 from traffic_intelligence.config.settings import PipelineConfig
+from traffic_intelligence.persistence.video_encoder import finalize_video
 from traffic_intelligence.pipeline.video_source import VideoSource
 from traffic_intelligence.schemas.metrics import CongestionState, TrafficMetrics
 from traffic_intelligence.schemas.track import TrackSummary
@@ -37,9 +40,6 @@ class PipelineRunner:
     def __init__(self, config: PipelineConfig) -> None:
         self._config = config
         self._tracker = UltralyticsTracker(config.detection, config.tracking)
-        self._accumulator = TrackAccumulator(
-            config.tracking.min_track_seconds, config.tracking.min_visibility_ratio
-        )
         self._congestion_classifier = CongestionClassifier(config.congestion)
         self._annotator = FrameAnnotator()
         self._traffic_level_history: list[CongestionState] = []
@@ -48,6 +48,7 @@ class PipelineRunner:
         input_path = Path(input_path)
         output_dir = Path(output_dir)
         video_writer: cv2.VideoWriter | None = None
+        raw_video_path: Path | None = None
         annotated_video_path: Path | None = None
         last_frame_index = -1
         last_timestamp = 0.0
@@ -55,24 +56,41 @@ class PipelineRunner:
 
         with VideoSource(input_path, self._config.video.fps_override) as source:
             frame_diagonal = math.hypot(source.frame_width, source.frame_height)
+            speed_estimator = (
+                SpeedEstimator(self._config.speed.reference_widths_m, self._config.speed.min_calibration_samples)
+                if self._config.speed.enabled
+                else None
+            )
+            accumulator = TrackAccumulator(
+                self._config.tracking.min_track_seconds,
+                self._config.tracking.min_visibility_ratio,
+                speed_estimator=speed_estimator,
+                frame_diagonal=frame_diagonal,
+                min_movement_ratio=self._config.tracking.min_movement_ratio,
+                person_class=self._config.detection.person_class,
+            )
+            camera_motion = CameraMotionEstimator()
+
             if self._config.output.save_annotated_video:
                 videos_dir = output_dir / "videos"
                 videos_dir.mkdir(parents=True, exist_ok=True)
                 annotated_video_path = videos_dir / f"{input_path.stem}_annotated.mp4"
+                raw_video_path = videos_dir / f"{input_path.stem}_raw.mp4"
                 video_writer = cv2.VideoWriter(
-                    str(annotated_video_path),
+                    str(raw_video_path),
                     cv2.VideoWriter_fourcc(*"mp4v"),
                     source.fps,
                     (source.frame_width, source.frame_height),
                 )
 
             for frame_index, timestamp, frame in source.frames():
+                camera_motion.update(frame)
                 tracked = self._tracker.track(frame, frame_index, timestamp)
                 for detection in tracked:
-                    self._accumulator.add(detection)
+                    accumulator.add(detection, camera_motion.to_reference_frame(detection.centroid))
 
                 person_class = self._config.detection.person_class
-                confirmed = [d for d in tracked if self._accumulator.is_confirmed(d.track_id)]
+                confirmed = [d for d in tracked if accumulator.is_confirmed(d.track_id)]
                 vehicle_count = sum(1 for d in confirmed if d.class_name != person_class)
                 person_count = sum(1 for d in confirmed if d.class_name == person_class)
 
@@ -80,15 +98,16 @@ class PipelineRunner:
                 self._traffic_level_history.append(traffic_level)
 
                 if video_writer is not None:
-                    trails = {d.track_id: self._accumulator.trail(d.track_id) for d in confirmed}
+                    trails = {d.track_id: accumulator.trail(d.track_id) for d in confirmed}
+                    speeds = {d.track_id: accumulator.current_speed_kmh(d.track_id) for d in confirmed}
                     display_detections = []
                     for d in confirmed:
-                        class_id, class_name = self._accumulator.dominant_class(d.track_id)
+                        class_id, class_name = accumulator.dominant_class(d.track_id)
                         display_detections.append(
                             d.model_copy(update={"class_id": class_id, "class_name": class_name})
                         )
                     annotated_frame = self._annotator.annotate(
-                        frame, display_detections, trails, vehicle_count, person_count, traffic_level
+                        frame, display_detections, trails, speeds, vehicle_count, person_count, traffic_level
                     )
                     video_writer.write(annotated_frame)
 
@@ -98,7 +117,11 @@ class PipelineRunner:
             if video_writer is not None:
                 video_writer.release()
 
-        track_summaries = self._accumulator.finalize()
+            track_summaries = accumulator.finalize()
+
+        if raw_video_path is not None and annotated_video_path is not None:
+            finalize_video(raw_video_path, annotated_video_path)
+
         track_summaries = stitch_fragmented_tracks(
             track_summaries,
             frame_diagonal=frame_diagonal,

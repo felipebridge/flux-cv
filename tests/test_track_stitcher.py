@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from traffic_intelligence.schemas.track import TrackSummary
 from traffic_intelligence.tracking.track_stitcher import stitch_fragmented_tracks
 
@@ -89,6 +91,24 @@ def test_does_not_merge_across_different_classes():
     )
 
     assert len(result) == 2
+
+
+def test_merge_averages_speed_weighted_by_frame_count():
+    earlier = _summary(
+        1, "car", 0, 29, 0.0, 1.0, last_centroid=(100.0, 100.0), frame_count=30
+    ).model_copy(update={"avg_speed_kmh": 30.0, "max_speed_kmh": 40.0, "speed_estimated": True})
+    later = _summary(
+        2, "car", 45, 74, 1.5, 2.5, first_centroid=(110.0, 105.0), frame_count=30
+    ).model_copy(update={"avg_speed_kmh": 50.0, "max_speed_kmh": 60.0, "speed_estimated": True})
+
+    result = stitch_fragmented_tracks(
+        [earlier, later], frame_diagonal=_DIAGONAL, max_gap_seconds=1.0, max_centroid_distance_ratio=0.06
+    )
+
+    assert len(result) == 1
+    assert result[0].avg_speed_kmh == pytest.approx(40.0)
+    assert result[0].max_speed_kmh == pytest.approx(60.0)
+    assert result[0].speed_estimated is True
 
 
 def test_merges_a_chain_of_more_than_two_fragments():

@@ -51,11 +51,29 @@ def _best_chain_to_extend(
     return best_index
 
 
+def _weighted_average(
+    earlier: float | None, earlier_weight: int, later: float | None, later_weight: int
+) -> float | None:
+    if earlier is None:
+        return later
+    if later is None:
+        return earlier
+    return (earlier * earlier_weight + later * later_weight) / (earlier_weight + later_weight)
+
+
+def _max_optional(earlier: float | None, later: float | None) -> float | None:
+    values = [value for value in (earlier, later) if value is not None]
+    return max(values) if values else None
+
+
 def _merge(earlier: TrackSummary, later: TrackSummary) -> TrackSummary:
     total_frames = earlier.frame_count + later.frame_count
     mean_confidence = (
         earlier.mean_confidence * earlier.frame_count + later.mean_confidence * later.frame_count
     ) / total_frames
+    avg_speed_kmh = _weighted_average(
+        earlier.avg_speed_kmh, earlier.frame_count, later.avg_speed_kmh, later.frame_count
+    )
     return earlier.model_copy(
         update={
             "frame_count": total_frames,
@@ -63,5 +81,8 @@ def _merge(earlier: TrackSummary, later: TrackSummary) -> TrackSummary:
             "last_timestamp": later.last_timestamp,
             "last_centroid": later.last_centroid,
             "mean_confidence": mean_confidence,
+            "avg_speed_kmh": avg_speed_kmh,
+            "max_speed_kmh": _max_optional(earlier.max_speed_kmh, later.max_speed_kmh),
+            "speed_estimated": earlier.speed_estimated or later.speed_estimated,
         }
     )

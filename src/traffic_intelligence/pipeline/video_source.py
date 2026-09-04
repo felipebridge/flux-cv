@@ -22,6 +22,13 @@ class VideoSource:
         if not self._capture.isOpened():
             raise VideoSourceError(f"Could not open video file (unsupported or corrupt): {self._path}")
 
+        # Phone-recorded video (e.g. a portrait clip) often carries a 90/180/270 rotation flag
+        # in its container metadata rather than storing pixels upright. Without this, frames
+        # come out sideways -- both what the model sees and what gets written to the annotated
+        # output -- even though every normal video player honors the flag and displays it
+        # upright. This asks OpenCV to apply that rotation while decoding.
+        self._capture.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
+
         detected_fps = self._capture.get(cv2.CAP_PROP_FPS)
         self.fps = fps_override if fps_override else detected_fps
         if not self.fps or self.fps <= 0:

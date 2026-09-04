@@ -66,6 +66,7 @@ class UltralyticsTracker:
             frame,
             conf=self._detection_config.confidence_threshold,
             iou=self._detection_config.iou_threshold,
+            imgsz=self._detection_config.imgsz,
             classes=self._class_ids,
             device=self._device,
             tracker=self._tracker_yaml,

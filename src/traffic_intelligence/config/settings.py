@@ -31,6 +31,10 @@ class DetectionConfig(BaseModel):
     model_path: str = "yolo11s.pt"
     confidence_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
     iou_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Ultralytics' default (640) downscales a 4K frame enough that small/distant vehicles
+    # shrink below what the detector can pick up, undercounting how much traffic is visible
+    # at once. Raising this improves recall at roughly the square of the increase in runtime.
+    imgsz: int = Field(default=640, gt=0)
     vehicle_classes: list[str] = Field(
         default_factory=lambda: ["car", "bus", "truck", "motorcycle", "bicycle"]
     )
@@ -56,6 +60,7 @@ class TrackingConfig(BaseModel):
     reid_max_gap_seconds: float = Field(default=1.0, gt=0.0)
     reid_max_centroid_distance_ratio: float = Field(default=0.06, gt=0.0, le=1.0)
     appearance_reid_enabled: bool = Field(default=False)
+    min_movement_ratio: float = Field(default=0.08, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def _appearance_reid_requires_botsort(self) -> TrackingConfig:
@@ -85,12 +90,30 @@ class OutputConfig(BaseModel):
     save_annotated_video: bool = True
 
 
+class SpeedConfig(BaseModel):
+    """See analytics.speed.SpeedEstimator: speed is inferred from bounding-box size, not a
+    real camera calibration, so it's an estimate."""
+
+    enabled: bool = True
+    reference_widths_m: dict[str, float] = Field(
+        default_factory=lambda: {
+            "car": 1.8,
+            "bus": 2.5,
+            "truck": 2.5,
+            "motorcycle": 0.8,
+            "bicycle": 0.6,
+        }
+    )
+    min_calibration_samples: int = Field(default=30, ge=1)
+
+
 class PipelineConfig(BaseModel):
     video: VideoConfig = Field(default_factory=VideoConfig)
     detection: DetectionConfig = Field(default_factory=DetectionConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     congestion: CongestionConfig
     output: OutputConfig = Field(default_factory=OutputConfig)
+    speed: SpeedConfig = Field(default_factory=SpeedConfig)
 
 
 def load_config(path: str | Path) -> PipelineConfig:

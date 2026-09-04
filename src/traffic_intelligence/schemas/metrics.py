@@ -18,3 +18,5 @@ class TrafficMetrics(BaseModel):
     traffic_level: CongestionState
     video_duration_s: float
     frames_processed: int
+    average_vehicle_speed_kmh: float | None = None
+    speed_estimated: bool = False

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from traffic_intelligence.analytics.speed import SpeedEstimator
+from traffic_intelligence.tracking import track_accumulator
 from traffic_intelligence.tracking.track_accumulator import TrackAccumulator
 
 
@@ -119,3 +121,185 @@ def test_is_confirmed_matches_finalize_for_flickering_track(detection_factory):
 
     assert accumulator.is_confirmed(1) is False
     assert accumulator.finalize() == []
+
+
+def test_finalize_speed_fields_default_without_estimator(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.01)
+    accumulator.add(detection_factory(track_id=1, frame_index=0))
+    accumulator.add(detection_factory(track_id=1, frame_index=1))
+
+    summaries = accumulator.finalize()
+    assert summaries[0].avg_speed_kmh is None
+    assert summaries[0].max_speed_kmh is None
+    assert summaries[0].speed_estimated is False
+
+
+def test_current_speed_kmh_none_without_estimator(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.01)
+    accumulator.add(detection_factory(track_id=1, frame_index=0))
+
+    assert accumulator.current_speed_kmh(1) is None
+
+
+def test_finalize_computes_speed_once_estimator_is_calibrated(detection_factory):
+    estimator = SpeedEstimator(min_calibration_samples=2)
+    accumulator = TrackAccumulator(min_track_seconds=0.01, speed_estimator=estimator)
+    for frame_index in range(6):
+        offset = frame_index * 20
+        accumulator.add(
+            detection_factory(
+                track_id=1,
+                frame_index=frame_index,
+                class_name="car",
+                bbox=(offset, 0, offset + 10, 10),
+                fps=10.0,
+            )
+        )
+
+    summaries = accumulator.finalize()
+    assert summaries[0].speed_estimated is True
+    assert summaries[0].avg_speed_kmh is not None
+    assert summaries[0].avg_speed_kmh > 0
+    assert summaries[0].max_speed_kmh is not None
+
+
+def test_current_speed_kmh_none_before_min_segment_duration(detection_factory):
+    estimator = SpeedEstimator(min_calibration_samples=1)
+    accumulator = TrackAccumulator(min_track_seconds=0.01, speed_estimator=estimator)
+    accumulator.add(
+        detection_factory(track_id=1, frame_index=0, class_name="car", bbox=(0, 0, 10, 10), fps=100.0)
+    )
+    accumulator.add(
+        detection_factory(track_id=1, frame_index=1, class_name="car", bbox=(1, 0, 11, 10), fps=100.0)
+    )
+
+    assert accumulator.current_speed_kmh(1) is None
+
+
+def test_stationary_vehicle_is_not_confirmed(detection_factory):
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.05
+    )
+    for frame_index in range(5):
+        accumulator.add(
+            detection_factory(track_id=1, frame_index=frame_index, class_name="car", bbox=(0, 0, 10, 10))
+        )
+
+    assert accumulator.is_confirmed(1) is False
+    assert accumulator.finalize() == []
+
+
+def test_moving_vehicle_is_confirmed_despite_movement_filter(detection_factory):
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.05
+    )
+    for frame_index in range(5):
+        offset = frame_index * 20
+        accumulator.add(
+            detection_factory(
+                track_id=1,
+                frame_index=frame_index,
+                class_name="car",
+                bbox=(offset, 0, offset + 10, 10),
+            )
+        )
+
+    assert accumulator.is_confirmed(1) is True
+
+
+def test_long_lived_track_needs_more_movement_to_stay_confirmed(detection_factory):
+    # Camera-motion compensation drift compounds over a long shot -- a track that's been in
+    # frame for 15s+ with only modest displacement (i.e. it would pass the base filter) reads
+    # as parked/stationary once that residual drift is accounted for, not as real movement.
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.1
+    )
+    for frame_index in range(17):  # timestamps 0..16s at fps=1.0
+        offset = frame_index * 10  # displacement reaches 160px, above the 100px base threshold
+        accumulator.add(
+            detection_factory(
+                track_id=1,
+                frame_index=frame_index,
+                class_name="car",
+                bbox=(offset, 0, offset + 10, 10),
+                fps=1.0,
+            )
+        )
+
+    assert accumulator.is_confirmed(1) is False
+
+
+def test_long_lived_track_confirmed_with_clearly_real_movement(detection_factory):
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.1
+    )
+    for frame_index in range(17):  # timestamps 0..16s at fps=1.0
+        offset = frame_index * 30  # displacement reaches 480px, above the 300px strict threshold
+        accumulator.add(
+            detection_factory(
+                track_id=1,
+                frame_index=frame_index,
+                class_name="car",
+                bbox=(offset, 0, offset + 10, 10),
+                fps=1.0,
+            )
+        )
+
+    assert accumulator.is_confirmed(1) is True
+
+
+def test_movement_filter_does_not_apply_to_pedestrians(detection_factory):
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.05
+    )
+    for frame_index in range(5):
+        accumulator.add(
+            detection_factory(
+                track_id=1, frame_index=frame_index, class_name="person", class_id=0, bbox=(0, 0, 10, 10)
+            )
+        )
+
+    assert accumulator.is_confirmed(1) is True
+
+
+def test_movement_filter_disabled_when_ratio_is_zero(detection_factory):
+    accumulator = TrackAccumulator(min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.0)
+    for frame_index in range(5):
+        accumulator.add(
+            detection_factory(track_id=1, frame_index=frame_index, class_name="car", bbox=(0, 0, 10, 10))
+        )
+
+    assert accumulator.is_confirmed(1) is True
+
+
+def test_percentile_helper_matches_known_values():
+    assert track_accumulator._percentile([10.0], 0.9) == 10.0
+    assert track_accumulator._percentile([1.0, 2.0, 3.0, 4.0, 5.0], 0.5) == 3.0
+
+
+def test_percentile_helper_is_robust_to_a_single_outlier():
+    # A one-off spike (e.g. one noisy segment among many normal ones) shouldn't dominate the
+    # reported "top speed" -- see TrackAccumulator._speed_summary.
+    values = [5.0] * 49 + [500.0]
+    assert track_accumulator._percentile(values, 0.9) < 50.0
+
+
+def test_add_uses_compensated_position_for_movement_and_speed(detection_factory):
+    # A raw centroid that drifts (as it would if the camera itself pans) should not count as
+    # real movement once a compensated (world-frame) position is supplied that stays put.
+    accumulator = TrackAccumulator(
+        min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.05
+    )
+    for frame_index in range(5):
+        offset = frame_index * 20
+        accumulator.add(
+            detection_factory(
+                track_id=1,
+                frame_index=frame_index,
+                class_name="car",
+                bbox=(offset, 0, offset + 10, 10),
+            ),
+            position=(5.0, 5.0),
+        )
+
+    assert accumulator.is_confirmed(1) is False

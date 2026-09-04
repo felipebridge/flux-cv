@@ -22,6 +22,9 @@ _TRACK_COLUMNS = [
     "first_centroid_y",
     "last_centroid_x",
     "last_centroid_y",
+    "avg_speed_kmh",
+    "max_speed_kmh",
+    "speed_estimated",
 ]
 
 

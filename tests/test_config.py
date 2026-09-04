@@ -20,6 +20,27 @@ def test_load_default_config_succeeds():
     assert config.tracking.tracker.value in {"bytetrack", "botsort"}
 
 
+def test_load_default_config_includes_speed_section():
+    config = load_config("configs/default.yaml")
+    assert config.speed.enabled is True
+    assert "car" in config.speed.reference_widths_m
+
+
+def test_tracking_config_defaults_min_movement_ratio():
+    config = TrackingConfig(tracker="bytetrack")
+    assert config.min_movement_ratio == 0.08
+
+
+def test_detection_config_defaults_imgsz():
+    config = DetectionConfig()
+    assert config.imgsz == 640
+
+
+def test_load_default_config_uses_higher_imgsz():
+    config = load_config("configs/default.yaml")
+    assert config.detection.imgsz == 1280
+
+
 def test_load_config_missing_file_raises():
     with pytest.raises(ConfigError, match="not found"):
         load_config("configs/does_not_exist.yaml")
