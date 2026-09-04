@@ -3,9 +3,16 @@ video:
 
 detection:
   model_path: "yolo11l.pt"
-  confidence_threshold: 0.25
-  iou_threshold: 0.5
-  imgsz: 1280
+  confidence_threshold: 0.2
+  # Raised from 0.5: with many vehicles side-by-side or overlapping in a dense scene, standard
+  # NMS at 0.5 was merging/suppressing adjacent vehicle boxes down to whichever pair was most
+  # cleanly separated, undercounting how many vehicles show as detected at once.
+  iou_threshold: 0.65
+  # Raised from 1280 (see settings.py note). Validated against this project's dense-traffic
+  # footage: at 1280-1600 the far-lane traffic jam (small, distant vehicles) was almost entirely
+  # missed (single-frame test: 30 vehicle boxes at 1280 vs 43 at 2016 on the same frame); 2016
+  # recovers most of it while keeping CPU inference time bounded (native width is 2754px).
+  imgsz: 2016
   vehicle_classes: ["car", "bus", "truck", "motorcycle", "bicycle"]
   person_class: "person"
   device: "auto"
@@ -14,7 +21,9 @@ tracking:
   tracker: "botsort"
   appearance_reid_enabled: true
   min_track_seconds: 0.3
-  min_visibility_ratio: 0.6
+  # Lowered from 0.6: in dense multi-vehicle traffic, mutual occlusion between neighboring
+  # vehicles was dropping real, frequently-visible tracks that dipped just under the old bar.
+  min_visibility_ratio: 0.5
   reid_max_gap_seconds: 1.0
   reid_max_centroid_distance_ratio: 0.06
   min_movement_ratio: 0.08

@@ -38,7 +38,7 @@ def test_detection_config_defaults_imgsz():
 
 def test_load_default_config_uses_higher_imgsz():
     config = load_config("configs/default.yaml")
-    assert config.detection.imgsz == 1280
+    assert config.detection.imgsz == 2016
 
 
 def test_load_config_missing_file_raises():
