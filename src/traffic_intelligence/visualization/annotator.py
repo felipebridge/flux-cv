@@ -58,6 +58,20 @@ def _put_label(
     cv2.putText(frame, text, origin, _FONT, font_scale, color, thickness, cv2.LINE_AA)
 
 
+def _put_label_outlined(
+    frame: np.ndarray,
+    text: str,
+    origin: tuple[int, int],
+    color: tuple[int, int, int],
+    font_scale: float,
+    thickness: int = 1,
+) -> None:
+    """Like _put_label, but with a dark halo behind the glyphs -- the panel sits over live
+    video, so a light color alone can wash out against a bright patch of frame behind it."""
+    cv2.putText(frame, text, origin, _FONT, font_scale, (0, 0, 0), thickness + 3, cv2.LINE_AA)
+    cv2.putText(frame, text, origin, _FONT, font_scale, color, thickness, cv2.LINE_AA)
+
+
 class FrameAnnotator:
     """Renders bounding boxes, per-track trails, per-vehicle speed labels, and a summary
     panel."""
@@ -145,27 +159,28 @@ class FrameAnnotator:
     ) -> None:
         level_color = _CONGESTION_COLORS[traffic_level]
         margin = round(20 * scale)
-        width, height = round(360 * scale), round(190 * scale)
+        width, height = round(380 * scale), round(200 * scale)
         x0, y0 = margin, margin
         x1, y1 = x0 + width, y0 + height
 
         overlay = frame.copy()
         cv2.rectangle(overlay, (x0, y0), (x1, y1), _PANEL_BG, thickness=-1)
-        cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, frame)
+        cv2.addWeighted(overlay, 0.88, frame, 0.12, 0, frame)
+        cv2.rectangle(frame, (x0, y0), (x1, y1), (90, 90, 90), thickness=max(1, round(scale)))
 
-        accent_width = max(5, round(7 * scale))
+        accent_width = max(6, round(8 * scale))
         cv2.rectangle(frame, (x0, y0), (x0 + accent_width, y1), level_color, thickness=-1)
 
         text_x = x0 + accent_width + round(16 * scale)
-        line_scale = 0.9 * scale
-        line_gap = round(46 * scale)
+        line_scale = 1.0 * scale
+        line_gap = round(48 * scale)
         text_thickness = 2 if scale >= 1.6 else 1
-        first_line_y = y0 + round(46 * scale)
+        first_line_y = y0 + round(48 * scale)
 
-        _put_label(
+        _put_label_outlined(
             frame, f"Vehicles  {vehicle_count}", (text_x, first_line_y), _PANEL_TEXT, line_scale, text_thickness
         )
-        _put_label(
+        _put_label_outlined(
             frame,
             f"People    {person_count}",
             (text_x, first_line_y + line_gap),
@@ -173,19 +188,19 @@ class FrameAnnotator:
             line_scale,
             text_thickness,
         )
-        _put_label(
+        _put_label_outlined(
             frame,
             f"Traffic   {traffic_level.value}",
             (text_x, first_line_y + 2 * line_gap),
             level_color,
-            line_scale * 1.05,
+            line_scale * 1.1,
             text_thickness,
         )
-        _put_label(
+        _put_label_outlined(
             frame,
             "Speed shown per vehicle is a CV estimate",
             (text_x, y1 - round(14 * scale)),
             _PANEL_MUTED_TEXT,
-            0.46 * scale,
+            0.48 * scale,
             1,
         )

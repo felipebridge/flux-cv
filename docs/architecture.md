@@ -157,8 +157,8 @@ of apparent motion for objects that were provably parked the entire time (severa
 genuinely-stationary vehicles drifted by almost exactly the same amount, which is the signature of
 uncorrected camera drift, not per-object noise). Because that drift grows with elapsed time while
 `min_movement_ratio` is tuned for the few-second window most real vehicles are visible for,
-`TrackAccumulator` applies a stricter bar (`_LONG_TRACK_MOVEMENT_MULTIPLIER`, currently 3x) once a
-track has been continuously visible for `_LONG_TRACK_SECONDS` (15s): real through-traffic isn't
+`TrackAccumulator` applies a stricter bar (`_LONG_TRACK_MOVEMENT_MULTIPLIER`, currently 4x) once a
+track has been continuously visible for `_LONG_TRACK_SECONDS` (10s): real through-traffic isn't
 usually in frame that long from one camera position, so a vehicle that's still there is almost
 certainly parked, no matter how much the compensation error alone could explain. This is a
 targeted workaround for a specific failure mode observed in testing, not a general fix for visual
@@ -175,3 +175,21 @@ real vehicle motion, so genuinely moving cars get misclassified as background-co
 needs the moving foreground to be a small, clearly-different-motion minority of the tracked
 points to work, which doesn't hold for anything but light, sparse traffic. Don't reintroduce this
 without solving that failure mode first.
+
+## Why a driver/passenger isn't counted as a pedestrian
+
+The detector has no notion of "inside a vehicle" -- it finds a person-shaped region wherever one
+appears, windshield or sidewalk alike. A driver visible through the windshield gets detected as
+its own `person` box, tracked separately from the car it's sitting in. Left alone, that produces
+two visible bugs at once: an inflated pedestrian count, and a "pedestrian" that inherits the
+car's speed on screen (motion-compensated position tracks the box, and the box moves at the
+car's speed) -- which is how a short-lived `person` track ends up reporting 30+ km/h, an
+impossible walking speed that was really a glimpse of someone riding in traffic.
+
+`analytics.occupant_filter.exclude_vehicle_occupants` runs on every frame's detections before
+they reach `TrackAccumulator`: a `person` box is dropped if it's at least `_CONTAINMENT_THRESHOLD`
+(60%) contained within a same-frame vehicle box. That threshold is deliberately well under 100%
+-- a driver's visible silhouette is rarely the entire windshield opening, so requiring near-total
+containment would miss most real occupants -- at the cost of occasionally suppressing a
+pedestrian who happens to stand tightly against a parked car. That trade-off is accepted; the
+alternative (leaving occupants in) is the more visible and more frequent error.

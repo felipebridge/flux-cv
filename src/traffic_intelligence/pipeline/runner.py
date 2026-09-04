@@ -10,6 +10,7 @@ import cv2
 from traffic_intelligence.analytics.congestion import CongestionClassifier
 from traffic_intelligence.analytics.metrics import compute_traffic_metrics
 from traffic_intelligence.analytics.motion_compensation import CameraMotionEstimator
+from traffic_intelligence.analytics.occupant_filter import exclude_vehicle_occupants
 from traffic_intelligence.analytics.speed import SpeedEstimator
 from traffic_intelligence.config.settings import PipelineConfig
 from traffic_intelligence.persistence.video_encoder import finalize_video
@@ -86,6 +87,7 @@ class PipelineRunner:
             for frame_index, timestamp, frame in source.frames():
                 camera_motion.update(frame)
                 tracked = self._tracker.track(frame, frame_index, timestamp)
+                tracked = exclude_vehicle_occupants(tracked, self._config.detection.person_class)
                 for detection in tracked:
                     accumulator.add(detection, camera_motion.to_reference_frame(detection.centroid))
 

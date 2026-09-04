@@ -2,8 +2,8 @@ video:
   fps_override: null
 
 detection:
-  model_path: "yolo11m.pt"
-  confidence_threshold: 0.3
+  model_path: "yolo11l.pt"
+  confidence_threshold: 0.25
   iou_threshold: 0.5
   imgsz: 1280
   vehicle_classes: ["car", "bus", "truck", "motorcycle", "bicycle"]
@@ -13,7 +13,7 @@ detection:
 tracking:
   tracker: "botsort"
   appearance_reid_enabled: true
-  min_track_seconds: 0.5
+  min_track_seconds: 0.3
   min_visibility_ratio: 0.6
   reid_max_gap_seconds: 1.0
   reid_max_centroid_distance_ratio: 0.06

@@ -14,13 +14,13 @@ _MIN_SPEED_SEGMENT_S = 0.4
 _INSTANT_SPEED_WINDOW_S = 0.7
 _TOP_SPEED_PERCENTILE = 0.9
 # Camera-motion compensation (see analytics.motion_compensation) is relative, frame-to-frame
-# visual odometry -- its estimation error compounds over a long shot, and by ~15s of continuous
-# footage that residual drift can rival a parked vehicle's real (zero) displacement. A vehicle
-# that's still in frame after this long almost certainly isn't passing through, so it's held to
-# a stricter bar rather than the base one, which is tuned for the short few-second windows most
-# real vehicles are visible for.
-_LONG_TRACK_SECONDS = 15.0
-_LONG_TRACK_MOVEMENT_MULTIPLIER = 3.0
+# visual odometry -- its estimation error compounds over a long shot, and after just several
+# seconds of continuous footage that residual drift can rival a parked vehicle's real (zero)
+# displacement. A vehicle that's still in frame this long almost certainly isn't passing
+# through, so it's held to a much stricter bar rather than the base one, which is tuned for the
+# short few-second windows most real vehicles are visible for.
+_LONG_TRACK_SECONDS = 10.0
+_LONG_TRACK_MOVEMENT_MULTIPLIER = 4.0
 # Segment endpoints are individual raw samples, so one noisy frame corrupts every segment that
 # touches it. Averaging each point with its neighbors first removes that without erasing real
 # motion, which happens over many frames, not one.

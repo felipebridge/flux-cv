@@ -209,7 +209,7 @@ def test_moving_vehicle_is_confirmed_despite_movement_filter(detection_factory):
 
 def test_long_lived_track_needs_more_movement_to_stay_confirmed(detection_factory):
     # Camera-motion compensation drift compounds over a long shot -- a track that's been in
-    # frame for 15s+ with only modest displacement (i.e. it would pass the base filter) reads
+    # frame for 10s+ with only modest displacement (i.e. it would pass the base filter) reads
     # as parked/stationary once that residual drift is accounted for, not as real movement.
     accumulator = TrackAccumulator(
         min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.1
@@ -234,7 +234,7 @@ def test_long_lived_track_confirmed_with_clearly_real_movement(detection_factory
         min_track_seconds=0.01, frame_diagonal=1000.0, min_movement_ratio=0.1
     )
     for frame_index in range(17):  # timestamps 0..16s at fps=1.0
-        offset = frame_index * 30  # displacement reaches 480px, above the 300px strict threshold
+        offset = frame_index * 30  # displacement reaches 480px, above the 400px strict threshold
         accumulator.add(
             detection_factory(
                 track_id=1,
